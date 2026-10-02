@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Contador de Refeições da Cantina</title>
+<meta name="theme-color" content="#E8722E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Outfit:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/firebase/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "AIzaSyAybFZ8ztk85ZoaHrGsx17NeCAz2wxT6tg",
+    authDomain: "contador-de-pratos.firebaseapp.com",
+    databaseURL: "https://contador-de-pratos-default-rtdb.firebaseio.com",
+    projectId: "contador-de-pratos",
+    storageBucket: "contador-de-pratos.firebasestorage.app",
+    messagingSenderId: "588956070524",
+    appId: "1:588956070524:web:862edffa293912395a4ff9"
+  });
+  var auth = firebase.auth();
+  var db   = firebase.database();
+</script>
+<style>
+  :root{
+    --paper:#FBF7EE; --paper-deep:#F2EBDC; --ink:#2B2420; --ink-soft:#6B5F52;
+    --carrot:#E8722E; --carrot-deep:#C85A1C; --stalk:#4F7942; --stalk-deep:#3C5E32;
+    --mustard:#D9A62E; --line:#DDD2BC; --card:#FFFFFF;
+    --shadow:0 1px 0 rgba(43,36,32,.04),0 8px 24px -8px rgba(43,36,32,.12);
+    --bg:var(--paper); --bg-deep:var(--paper-deep); --card-bg:var(--card);
+    --text:var(--ink); --text-soft:var(--ink-soft); --border:var(--line);
+  }
+  body.dark{
+    --bg:#1A1612; --bg-deep:#241E18; --card-bg:#2E261E; --card:#2E261E;
+    --paper:#1A1612; --paper-deep:#241E18; --ink:#F2EBDC; --ink-soft:#A09080;
+    --line:#3D3028; --text:#F2EBDC; --text-soft:#A09080; --border:#3D3028;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(circle at 1px 1px,rgba(128,100,60,.07) 1px,transparent 0);
+    background-size:22px 22px;
+    color:var(--text); font-family:'Outfit',sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased; transition:background .3s,color .3s;
+  }
+
+  /* ---- AUTH SCREEN ---- */
+  .auth-screen{
+    display:none; min-height:100vh;
+    align-items:center; justify-content:center; padding:24px;
+  }
+  .auth-screen.show{ display:flex; }
+  .auth-card{
+    background:var(--card-bg); border:1px solid var(--border);
+    border-radius:24px; padding:32px 24px; width:100%; max-width:380px;
+    box-shadow:var(--shadow);
+  }
+  .auth-logo{
+    width:54px; height:54px; border-radius:14px; background:var(--carrot);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 18px;
+  }
+  .auth-logo svg{ width:30px; height:30px; }
+  .auth-card h2{
+    font-family:'Archivo Black',sans-serif; font-size:22px;
+    text-align:center; margin:0 0 4px; color:var(--text);
+  }
+  .auth-card .auth-sub{
+    text-align:center; color:var(--text-soft); font-size:13.5px; margin:0 0 24px;
+  }
+  .auth-tabs{
+    display:flex; gap:4px; background:var(--bg-deep);
+    border-radius:12px; padding:4px; margin-bottom:20px;
+  }
+  .auth-tab{
+    flex:1; text-align:center; padding:9px;
+    font-weight:700; font-size:13.5px; border-radius:9px;
+    cursor:pointer; color:var(--text-soft); transition:all .15s;
+  }
+  .auth-tab.active{ background:var(--card-bg); color:var(--text); box-shadow:var(--shadow); }
+  .auth-field{ margin-bottom:12px; }
+  .auth-field label{ display:block; font-size:12.5px; font-weight:700; color:var(--text-soft); margin-bottom:5px; }
+  .auth-field input{
+    width:100%; padding:13px 14px; border-radius:12px;
+    border:1.5px solid var(--border); font-size:15px;
+    font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text);
+  }
+  .auth-field input:focus{ outline:2px solid var(--carrot); outline-offset:1px; border-color:transparent; }
+  .auth-submit{
+    width:100%; padding:15px; border-radius:14px; border:none;
+    background:var(--carrot); color:white; font-weight:800; font-size:16px;
+    font-family:'Outfit',sans-serif; cursor:pointer; margin-top:4px;
+    box-shadow:0 4px 0 var(--carrot-deep);
+    transition:transform .08s, box-shadow .08s;
+  }
+  .auth-submit:active{ transform:translateY(4px); box-shadow:none; }
+  .auth-submit:disabled{ opacity:.6; cursor:not-allowed; transform:none; box-shadow:0 4px 0 var(--carrot-deep); }
+  .auth-error{
+    background:#FBE7E7; color:#C84040; border-radius:10px;
+    padding:10px 14px; font-size:13px; font-weight:600;
+    margin-bottom:12px; display:none;
+  }
+  .auth-error.show{ display:block; }
+  .auth-forgot{
+    text-align:center; margin-top:14px;
+    font-size:13px; color:var(--text-soft);
+  }
+  .auth-forgot button{
+    background:none; border:none; color:var(--carrot);
+    font-weight:700; font-size:13px; cursor:pointer; font-family:'Outfit',sans-serif;
+  }
+
+  /* ---- LOADING ---- */
+  .loading-screen{
+    display:none; min-height:100vh;
+    align-items:center; justify-content:center; flex-direction:column; gap:14px;
+  }
+  .loading-screen.show{ display:flex; }
+  .spinner{
+    width:40px; height:40px; border:4px solid var(--border);
+    border-top-color:var(--carrot); border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{transform:rotate(360deg);} }
+  .loading-screen p{ color:var(--text-soft); font-size:14px; font-weight:600; }
+
+  /* ---- MAIN APP ---- */
+  .app-screen{ display:none; }
+  .app-screen.show{ display:block; }
+
+  body.fullscreen .wrap{ padding-top:0; }
+  body.fullscreen header,body.fullscreen .tabs,body.fullscreen #installBanner{ display:none !important; }
+  body.fullscreen .view{ padding-top:16px; }
+  body.fullscreen #view-contar{ display:flex; flex-direction:column; min-height:100vh; justify-content:center; }
+  body.fullscreen .scoreboard{ margin-bottom:16px; }
+  body.fullscreen .top-btn-row{ flex:1; max-height:320px; }
+  body.fullscreen .big-dual{ font-size:26px; padding:0; height:100%; }
+  body.fullscreen .secondary-row{ margin-bottom:16px; }
+  body.fullscreen #exitFullscreen{ display:flex !important; }
+
+  .wrap{ max-width:720px; margin:0 auto; padding:18px 18px 64px; }
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 4px 22px; border-bottom:2px dashed var(--border); margin-bottom:24px; gap:8px;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .brand-mark{
+    width:42px; height:42px; border-radius:11px; background:var(--carrot);
+    display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); flex-shrink:0;
+  }
+  .brand-mark svg{ width:24px; height:24px; }
+  .brand-text h1{ font-family:'Archivo Black',sans-serif; font-size:15px; letter-spacing:-.01em; margin:0; line-height:1.15; }
+  .brand-text p{ margin:2px 0 0; font-size:12px; color:var(--text-soft); font-weight:500; }
+  .header-actions{ display:flex; gap:6px; flex-shrink:0; align-items:center; }
+  .icon-btn{
+    width:36px; height:36px; border-radius:10px; border:1.5px solid var(--border);
+    background:var(--card-bg); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:var(--text-soft); flex-shrink:0; transition:background .15s;
+    position:relative;
+  }
+  .icon-btn:active{ background:var(--bg-deep); }
+  .icon-btn svg{ width:17px; height:17px; }
+  .user-btn{
+    height:36px; border-radius:10px; border:1.5px solid var(--border);
+    background:var(--card-bg); display:flex; align-items:center;
+    cursor:pointer; color:var(--text-soft); flex-shrink:0; padding:0 10px;
+    gap:6px; font-size:12px; font-weight:700; font-family:'Outfit',sans-serif;
+    max-width:120px; overflow:hidden;
+  }
+  .user-btn svg{ width:15px; height:15px; flex-shrink:0; }
+  .user-email{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .date-pill{
+    font-family:'Space Mono',monospace; font-size:11px;
+    background:var(--card-bg); border:1px solid var(--border);
+    border-radius:999px; padding:6px 10px; color:var(--text-soft); white-space:nowrap;
+  }
+
+  #exitFullscreen{
+    display:none; position:fixed; top:14px; right:14px; z-index:100;
+    background:rgba(43,36,32,.7); border:none; border-radius:10px;
+    color:white; padding:8px 12px; font-size:13px; font-weight:700;
+    cursor:pointer; gap:6px; align-items:center; backdrop-filter:blur(4px);
+  }
+  #exitFullscreen svg{ width:15px; height:15px; }
+
+  .tabs{
+    display:flex; gap:6px; background:var(--bg-deep); border-radius:14px;
+    padding:5px; margin-bottom:22px; border:1px solid var(--border);
+  }
+  .tab{
+    flex:1; text-align:center; padding:10px 6px; font-weight:700; font-size:13.5px;
+    border-radius:10px; cursor:pointer; color:var(--text-soft); transition:all .15s; user-select:none;
+  }
+  .tab.active{ background:var(--card-bg); color:var(--text); box-shadow:var(--shadow); }
+  .view{ display:none; }
+  .view.active{ display:block; animation:fadeUp .35s ease; }
+  @keyframes fadeUp{ from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);} }
+
+  /* SCOREBOARD */
+  .scoreboard{
+    background:var(--ink); border-radius:22px; padding:24px 20px 20px;
+    text-align:center; position:relative; overflow:hidden; box-shadow:var(--shadow); margin-bottom:14px;
+  }
+  body.dark .scoreboard{ background:#0E0B08; }
+  .scoreboard::before{
+    content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(transparent 0 27px,rgba(255,255,255,.025) 27px 28px);
+    pointer-events:none;
+  }
+  .scoreboard .eyebrow{
+    font-family:'Space Mono',monospace; font-size:10.5px;
+    letter-spacing:.14em; color:#C9BFA9; text-transform:uppercase; margin-bottom:6px;
+  }
+  .score-digits{ display:flex; justify-content:center; gap:6px; margin:4px 0 6px; }
+  .digit{
+    font-family:'Archivo Black',sans-serif; font-size:62px; line-height:1;
+    color:#F2EBDC; background:rgba(255,255,255,.06); border-radius:10px; width:52px;
+    display:flex; align-items:center; justify-content:center; padding:8px 0;
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1),color .25s;
+  }
+  .digit.flip{ transform:translateY(-6px) scale(1.06); color:var(--mustard); }
+  @media(max-width:420px){ .digit{ font-size:46px; width:38px; } }
+
+  .meta-bar-wrap{ margin:8px 16px 4px; }
+  .meta-bar-track{ height:8px; background:rgba(255,255,255,.1); border-radius:999px; overflow:hidden; }
+  .meta-bar-fill{ height:100%; border-radius:999px; background:linear-gradient(90deg,var(--mustard),var(--carrot)); transition:width .4s ease; max-width:100%; }
+  .meta-bar-label{ display:flex; justify-content:space-between; font-size:11px; color:#C9BFA9; margin-top:5px; font-family:'Space Mono',monospace; }
+  .meta-bar-label .pct{ color:var(--mustard); font-weight:700; }
+
+  .confetti-piece{
+    position:fixed; top:-10px; pointer-events:none; z-index:999;
+    animation:confettiFall 2.5s ease-in forwards;
+  }
+  @keyframes confettiFall{ 0%{transform:translateY(0) rotate(0deg);opacity:1;} 100%{transform:translateY(110vh) rotate(720deg);opacity:0;} }
+
+  .score-breakdown{
+    display:flex; align-items:center; justify-content:center;
+    gap:10px; margin-top:6px; font-size:12.5px; color:#C9BFA9; font-weight:600;
+  }
+  .breakdown-item{ display:flex; align-items:center; gap:4px; }
+  .breakdown-dot{ opacity:.5; }
+  .last-reg{ font-size:11px; color:#9A8F82; margin-top:6px; font-family:'Space Mono',monospace; }
+
+  /* BUTTONS */
+  .top-btn-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .big-dual{
+    border:none; color:white; font-family:'Outfit',sans-serif; font-weight:800; font-size:20px;
+    padding:28px 12px; border-radius:20px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; cursor:pointer; transition:transform .08s ease,box-shadow .08s ease;
+    position:relative; overflow:hidden; -webkit-user-select:none; user-select:none;
+  }
+  .big-dual svg{ width:30px; height:30px; flex-shrink:0; }
+  .big-dual:active{ transform:translateY(4px); }
+  .pegou-btn{ background:var(--carrot); box-shadow:0 4px 0 var(--carrot-deep),var(--shadow); }
+  .pegou-btn:active{ box-shadow:0 0 0 var(--carrot-deep); }
+  .repetiu-btn{ background:var(--carrot); box-shadow:0 4px 0 var(--carrot-deep),var(--shadow); }
+  .repetiu-btn:active{ box-shadow:0 0 0 var(--carrot-deep); }
+  .big-dual:disabled{ opacity:.45; cursor:not-allowed; transform:none !important; box-shadow:0 4px 0 var(--carrot-deep) !important; }
+  .cooldown-bar{
+    position:absolute; bottom:0; left:0; height:5px; border-radius:0 0 20px 20px;
+    background:rgba(255,255,255,.5); width:100%; transform-origin:left; transform:scaleX(0);
+  }
+  .big-dual.cooling .cooldown-bar{ animation:cooldownShrink 2s linear forwards; }
+  @keyframes cooldownShrink{ from{transform:scaleX(1);}to{transform:scaleX(0);} }
+  @media(max-width:360px){ .big-dual{ font-size:17px; padding:22px 8px; } }
+
+  .secondary-row{ display:flex; gap:8px; margin-bottom:20px; }
+  .ghost-btn{
+    flex:1; border:1.5px solid var(--border); background:var(--card-bg);
+    color:var(--text); font-weight:700; font-size:13.5px; padding:12px 8px;
+    border-radius:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    gap:6px; transition:background .15s,transform .08s;
+  }
+  .ghost-btn:active{ transform:scale(.97); }
+  .ghost-btn.undo{ color:var(--carrot-deep); border-color:#F0CBAF; }
+  .ghost-btn.undo:active{ background:#FCEEE3; }
+  .ghost-btn svg{ width:15px; height:15px; flex-shrink:0; }
+
+  .section-label{
+    font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text-soft); margin:0 2px 10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after{ content:""; flex:1; height:1px; background:var(--border); }
+
+  .meta-card{ background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow); }
+  .meta-card-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .meta-card-top span{ font-weight:700; font-size:14px; }
+  .meta-input-row{ display:flex; gap:8px; }
+  .meta-input{
+    flex:1; padding:10px 12px; border-radius:10px; border:1.5px solid var(--border);
+    font-size:16px; font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); font-weight:700;
+  }
+  .meta-input:focus{ outline:2px solid var(--carrot); outline-offset:1px; }
+  .meta-set-btn{ background:var(--carrot); color:white; border:none; font-weight:700; font-size:14px; padding:10px 16px; border-radius:10px; cursor:pointer; }
+  .meta-clear{ background:none; border:none; color:var(--text-soft); font-size:12px; cursor:pointer; font-weight:600; }
+
+  .report-hero{ background:var(--card-bg); border:1px solid var(--border); border-radius:18px; padding:22px; margin-bottom:18px; box-shadow:var(--shadow); }
+  .report-total{ display:flex; align-items:baseline; gap:10px; margin-bottom:4px; }
+  .report-total .num{ font-family:'Archivo Black',sans-serif; font-size:46px; color:var(--carrot-deep); }
+  .report-total .label{ font-size:14px; color:var(--text-soft); font-weight:600; }
+  .report-sub{ font-size:12px; color:var(--text-soft); font-family:'Space Mono',monospace; }
+
+  .obs-area{
+    width:100%; padding:12px 14px; border-radius:12px; border:1.5px solid var(--border);
+    font-size:14px; font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text);
+    resize:vertical; min-height:80px; margin-bottom:12px; margin-top:4px;
+  }
+  .obs-area:focus{ outline:2px solid var(--carrot); outline-offset:1px; }
+
+  .history-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 0; border-bottom:1px solid var(--bg-deep); font-size:13.5px;
+  }
+  .history-item:last-child{ border-bottom:none; }
+  .h-date{ font-weight:700; }
+  .h-meta{ color:var(--text-soft); font-family:'Space Mono',monospace; font-size:11.5px; margin-top:2px; }
+  .h-obs{ color:var(--text-soft); font-size:12px; margin-top:3px; font-style:italic; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .h-right{ text-align:right; }
+  .h-total{ font-family:'Archivo Black',sans-serif; font-size:20px; color:var(--stalk-deep); }
+
+  .empty-state{ text-align:center; padding:36px 20px; color:var(--text-soft); }
+  .empty-state svg{ width:44px; height:44px; opacity:.4; margin-bottom:10px; }
+  .empty-state p{ font-size:13.5px; margin:0; }
+
+  .reset-row{ margin-top:24px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .reset-row button{ background:none; border:1.5px solid var(--border); color:var(--text-soft); font-weight:700; font-size:13px; cursor:pointer; padding:10px 16px; border-radius:10px; font-family:'Outfit',sans-serif; }
+  .reset-row button:active{ background:var(--bg-deep); }
+  .reset-row .danger{ color:#B23A3A; border-color:#F0CBAF; }
+  .reset-row .danger:active{ background:#FBE7E7; }
+
+  /* CONFIRM MODAL */
+  .confirm-overlay{
+    position:fixed; inset:0; background:rgba(43,36,32,.5);
+    display:none; align-items:center; justify-content:center; z-index:200; padding:20px;
+  }
+  .confirm-overlay.show{ display:flex; }
+  .confirm-box{ background:var(--card-bg); border-radius:20px; padding:24px 20px 20px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,.3); animation:popIn .2s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes popIn{ from{transform:scale(.85);opacity:0;}to{transform:scale(1);opacity:1;} }
+  .confirm-box h3{ font-family:'Archivo Black',sans-serif; font-size:17px; margin:0 0 8px; color:var(--text); }
+  .confirm-box p{ font-size:14px; color:var(--text-soft); margin:0 0 20px; line-height:1.5; }
+  .confirm-btns{ display:flex; gap:10px; }
+  .confirm-btns button{ flex:1; padding:13px; border-radius:12px; border:none; font-weight:700; font-size:14.5px; cursor:pointer; font-family:'Outfit',sans-serif; }
+  .confirm-cancel{ background:var(--bg-deep); color:var(--text-soft); }
+  .confirm-ok{ background:var(--carrot); color:white; }
+  .confirm-ok.danger-ok{ background:#C84040; }
+
+  /* TOAST */
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--paper); padding:12px 20px; border-radius:999px;
+    font-size:13.5px; font-weight:600; box-shadow:var(--shadow); opacity:0;
+    transition:opacity .25s,transform .25s; pointer-events:none; z-index:300; white-space:nowrap;
+  }
+  body.dark .toast{ background:#F2EBDC; color:#2B2420; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  :focus-visible{ outline:2.5px solid var(--carrot-deep); outline-offset:2px; }
+  @media(prefers-reduced-motion:reduce){ *{ animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen show" id="loadingScreen">
+  <div class="spinner"></div>
+  <p>Carregando...</p>
+</div>
+
+<!-- AUTH -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="7" stroke="white" stroke-width="2"/><path d="M9 3v5a2 2 0 004 0V3M11 8v8M16 3v13" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <h2>Contador da Cantina</h2>
+    <p class="auth-sub">Entre para acessar o contador</p>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-auth="login">Entrar</div>
+      <div class="auth-tab" data-auth="register">Criar conta</div>
+    </div>
+
+    <div class="auth-error" id="authError"></div>
+
+    <div class="auth-field">
+      <label>E-mail</label>
+      <input type="email" id="authEmail" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Senha</label>
+      <input type="password" id="authPassword" placeholder="Mínimo 6 caracteres" autocomplete="current-password">
+    </div>
+    <div class="auth-field" id="fieldName" style="display:none">
+      <label>Nome (opcional)</label>
+      <input type="text" id="authName" placeholder="Ex: Cantina do 3º Ano">
+    </div>
+
+    <button class="auth-submit" id="authSubmit">Entrar</button>
+
+    <div class="auth-forgot">
+      <button id="btnForgot">Esqueci minha senha</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app-screen" id="appScreen">
+
+  <button id="exitFullscreen">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M8 3v4H4M16 3v4h4M8 21v-4H4M16 21v-4h4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Sair da tela cheia
+  </button>
+
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="7" stroke="white" stroke-width="2"/><path d="M9 3v5a2 2 0 004 0V3M11 8v8M16 3v13" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="brand-text">
+          <h1>Contador de Refeições da Cantina</h1>
+          <p>Refeições do intervalo</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="date-pill" id="todayPill">—</div>
+        <button class="icon-btn" id="btnDark" title="Modo escuro">
+          <svg id="iconDark" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="btnFullscreen" title="Tela cheia">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M8 3H5a2 2 0 00-2 2v3M21 8V5a2 2 0 00-2-2h-3M16 21h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="user-btn" id="btnUser">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="user-email" id="userEmail">—</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="contar">Contar</div>
+      <div class="tab" data-tab="relatorio">Relatório</div>
+      <div class="tab" data-tab="historico">Histórico</div>
+    </div>
+
+    <!-- CONTAR -->
+    <div class="view active" id="view-contar">
+      <div class="scoreboard">
+        <div class="eyebrow">Pratos servidos hoje</div>
+        <div class="score-digits" id="scoreDigits"></div>
+        <div id="metaBarWrap" class="meta-bar-wrap" style="display:none">
+          <div class="meta-bar-track"><div class="meta-bar-fill" id="metaBarFill" style="width:0%"></div></div>
+          <div class="meta-bar-label"><span id="metaBarLeft">0 / 0</span><span class="pct" id="metaBarPct">0%</span></div>
+        </div>
+        <div class="score-breakdown">
+          <span class="breakdown-item" style="color:#88D47A"><span id="totalPegou">0</span> pegaram</span>
+          <span class="breakdown-dot">·</span>
+          <span class="breakdown-item" style="color:#D9A62E"><span id="totalRepetiu">0</span> repetiram</span>
+        </div>
+        <div class="last-reg" id="lastReg"></div>
+      </div>
+
+      <div class="top-btn-row">
+        <button class="big-dual pegou-btn" id="btnPegou">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M20 7l-8 8-4-4" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Pegou Prato
+          <div class="cooldown-bar"></div>
+        </button>
+        <button class="big-dual repetiu-btn" id="btnRepetiu">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="white" stroke-width="3" stroke-linecap="round"/></svg>
+          Repetiu
+          <div class="cooldown-bar"></div>
+        </button>
+      </div>
+
+      <div class="secondary-row">
+        <button class="ghost-btn undo" id="btnUndo">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Desfazer
+        </button>
+        <button class="ghost-btn" id="btnZerar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Zerar dia
+        </button>
+      </div>
+
+      <div class="section-label">Meta do dia</div>
+      <div class="meta-card">
+        <div class="meta-card-top">
+          <span id="metaLabel">Nenhuma meta definida</span>
+          <button class="meta-clear" id="btnClearMeta" style="display:none">Remover</button>
+        </div>
+        <div class="meta-input-row">
+          <input class="meta-input" type="number" id="metaInput" placeholder="Ex: 200" min="1" max="9999">
+          <button class="meta-set-btn" id="btnSetMeta">Definir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELATORIO -->
+    <div class="view" id="view-relatorio">
+      <div class="report-hero">
+        <div class="report-total">
+          <div class="num" id="repTotal">0</div>
+          <div class="label">pratos hoje</div>
+        </div>
+        <div class="report-sub" id="repSub">—</div>
+      </div>
+      <div class="section-label">Observação do dia</div>
+      <textarea class="obs-area" id="obsArea" placeholder="Ex: dia chuvoso, faltou arroz..."></textarea>
+      <div class="reset-row">
+        <button id="btnFinishDay">✓ Encerrar e salvar no histórico</button>
+      </div>
+    </div>
+
+    <!-- HISTORICO -->
+    <div class="view" id="view-historico">
+      <div class="section-label">Dias anteriores</div>
+      <div id="historyList" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:6px 16px;box-shadow:var(--shadow);"></div>
+      <div class="reset-row" style="margin-top:16px;">
+        <button class="danger" id="btnClearHistory">Apagar todo o histórico</button>
+        <button id="btnLogout">Sair da conta</button>
+      </div>
+    </div>
+
+  </div><!-- wrap -->
+</div><!-- app-screen -->
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3 id="confirmTitle"></h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" id="confirmCancel">Cancelar</button>
+      <button class="confirm-ok" id="confirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var currentUser = null;
+  var meta = 0;
+  var state = { date: todayISO(), total:0, pegou:0, repetiu:0, log:[], lastTime:null };
+
+  function userRef(path){ return db.ref("users/"+currentUser.uid+"/"+path); }
+
+  // ---- UTILS ----
+  function todayISO(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function pad(n){ return n<10?"0"+n:""+n; }
+  function formatDatePT(iso){
+    var p=iso.split("-"), d=new Date(p[0],p[1]-1,p[2]);
+    var dias=["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+    var meses=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+    return dias[d.getDay()].charAt(0).toUpperCase()+dias[d.getDay()].slice(1)+", "+d.getDate()+" "+meses[d.getMonth()];
+  }
+  function fmtTime(ts){ if(!ts) return ""; var d=new Date(ts); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function escHtml(s){ return String(s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c];}); }
+
+  // ---- AUTH STATE ----
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      currentUser = user;
+      document.getElementById("userEmail").textContent = user.email.split("@")[0];
+      showApp();
+      loadUserData();
+    } else {
+      currentUser = null;
+      showAuth();
+    }
+  });
+
+  function showLoading(){ document.getElementById("loadingScreen").classList.add("show"); document.getElementById("authScreen").classList.remove("show"); document.getElementById("appScreen").classList.remove("show"); }
+  function showAuth(){ document.getElementById("loadingScreen").classList.remove("show"); document.getElementById("authScreen").classList.add("show"); document.getElementById("appScreen").classList.remove("show"); }
+  function showApp(){ document.getElementById("loadingScreen").classList.remove("show"); document.getElementById("authScreen").classList.remove("show"); document.getElementById("appScreen").classList.add("show"); }
+
+  // ---- AUTH LOGIC ----
+  var authMode = "login";
+  document.querySelectorAll(".auth-tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      authMode = t.dataset.auth;
+      document.querySelectorAll(".auth-tab").forEach(function(x){ x.classList.remove("active"); });
+      t.classList.add("active");
+      document.getElementById("fieldName").style.display = authMode==="register"?"block":"none";
+      document.getElementById("authSubmit").textContent = authMode==="register"?"Criar conta":"Entrar";
+      document.getElementById("authError").classList.remove("show");
+      document.getElementById("authPassword").setAttribute("autocomplete", authMode==="register"?"new-password":"current-password");
+    });
+  });
+
+  function showAuthError(msg){ var el=document.getElementById("authError"); el.textContent=msg; el.classList.add("show"); }
+  function hideAuthError(){ document.getElementById("authError").classList.remove("show"); }
+
+  document.getElementById("authSubmit").addEventListener("click", async function(){
+    var email = document.getElementById("authEmail").value.trim();
+    var pass  = document.getElementById("authPassword").value;
+    if(!email || !pass){ showAuthError("Preencha e-mail e senha."); return; }
+    var btn = this; btn.disabled=true; btn.textContent="Aguarde..."; hideAuthError();
+    try{
+      if(authMode==="register"){
+        var cred = await auth.createUserWithEmailAndPassword(email, pass);
+        var name = document.getElementById("authName").value.trim();
+        if(name) await cred.user.updateProfile({displayName: name});
+      } else {
+        await auth.signInWithEmailAndPassword(email, pass);
+      }
+    } catch(e){
+      var msgs = {
+        "auth/user-not-found":"Conta não encontrada.",
+        "auth/wrong-password":"Senha incorreta.",
+        "auth/email-already-in-use":"Este e-mail já está cadastrado.",
+        "auth/weak-password":"A senha precisa ter pelo menos 6 caracteres.",
+        "auth/invalid-email":"E-mail inválido.",
+        "auth/invalid-credential":"E-mail ou senha incorretos."
+      };
+      showAuthError(msgs[e.code]||"Erro: "+e.message);
+      btn.disabled=false; btn.textContent=authMode==="register"?"Criar conta":"Entrar";
+    }
+  });
+
+  document.getElementById("authEmail").addEventListener("keydown", function(e){ if(e.key==="Enter") document.getElementById("authPassword").focus(); });
+  document.getElementById("authPassword").addEventListener("keydown", function(e){ if(e.key==="Enter") document.getElementById("authSubmit").click(); });
+
+  document.getElementById("btnForgot").addEventListener("click", async function(){
+    var email = document.getElementById("authEmail").value.trim();
+    if(!email){ showAuthError("Digite seu e-mail acima para redefinir a senha."); return; }
+    try{ await auth.sendPasswordResetEmail(email); showAuthError("E-mail de redefinição enviado! Verifique sua caixa de entrada."); document.getElementById("authError").style.background="#E7F5E7"; document.getElementById("authError").style.color="#2A6B2A"; }
+    catch(e){ showAuthError("Não foi possível enviar o e-mail. Verifique o endereço."); }
+  });
+
+  // ---- LOAD USER DATA ----
+  async function loadUserData(){
+    try{
+      // tema
+      var thSnap = await userRef("theme").get();
+      if(thSnap.exists() && thSnap.val()==="1"){ document.body.classList.add("dark"); updateDarkIcon(true); }
+      // meta
+      var mtSnap = await userRef("meta").get();
+      if(mtSnap.exists()) meta = parseInt(mtSnap.val())||0;
+      // state
+      var stSnap = await userRef("state").get();
+      if(stSnap.exists()){
+        var parsed = stSnap.val();
+        if(parsed.date===todayISO()){
+          state = parsed; state.log = state.log||[];
+        } else {
+          if(parsed.total>0) await saveToHistory(parsed);
+          state = {date:todayISO(),total:0,pegou:0,repetiu:0,log:[],lastTime:null};
+          await persist();
+        }
+      }
+    }catch(e){ console.error(e); }
+    renderAll();
+  }
+
+  async function persist(){
+    if(!currentUser) return;
+    try{ await userRef("state").set(state); }
+    catch(e){ showToast("Erro ao salvar"); }
+  }
+  async function saveToHistory(snap){
+    if(!currentUser) return;
+    try{ await userRef("history/"+snap.date).set(snap); }catch(e){}
+  }
+  async function persistMeta(){
+    if(!currentUser) return;
+    try{ await userRef("meta").set(String(meta)); }catch(e){}
+  }
+  async function persistTheme(isDark){
+    if(!currentUser) return;
+    try{ await userRef("theme").set(isDark?"1":"0"); }catch(e){}
+  }
+
+  // ---- RENDER ----
+  function renderAll(){
+    document.getElementById("todayPill").textContent = formatDatePT(state.date);
+    renderScore(); renderReport(); renderMeta(); renderLastTime();
+  }
+  function renderScore(prevTotal){
+    var box=document.getElementById("scoreDigits");
+    var str=String(state.total).padStart(3,"0");
+    var prevStr=prevTotal!==undefined?String(prevTotal).padStart(3,"0"):null;
+    box.innerHTML="";
+    for(var i=0;i<str.length;i++){
+      var d=document.createElement("div"); d.className="digit"; d.textContent=str[i];
+      if(prevStr&&prevStr[i]!==str[i]) d.classList.add("flip");
+      box.appendChild(d);
+    }
+    if(prevStr) setTimeout(function(){ box.querySelectorAll(".digit").forEach(function(d){ d.classList.remove("flip"); }); },260);
+    document.getElementById("totalPegou").textContent=state.pegou;
+    document.getElementById("totalRepetiu").textContent=state.repetiu;
+    renderMetaBar();
+  }
+  function renderMetaBar(){
+    var wrap=document.getElementById("metaBarWrap");
+    if(!meta){ wrap.style.display="none"; return; }
+    wrap.style.display="block";
+    var p=Math.min(100,Math.round(state.total/meta*100));
+    document.getElementById("metaBarFill").style.width=p+"%";
+    document.getElementById("metaBarLeft").textContent=state.total+" / "+meta;
+    document.getElementById("metaBarPct").textContent=p+"%";
+  }
+  function renderLastTime(){ document.getElementById("lastReg").textContent=state.lastTime?"último registro às "+fmtTime(state.lastTime):""; }
+  function renderReport(){
+    document.getElementById("repTotal").textContent=state.total;
+    var sub=formatDatePT(state.date);
+    if(state.total>0) sub+=" · "+state.pegou+" pegaram · "+state.repetiu+" repetiram";
+    else sub+=" · Nenhum prato registrado ainda";
+    document.getElementById("repSub").textContent=sub;
+  }
+  function renderMeta(){
+    var lbl=document.getElementById("metaLabel"), clr=document.getElementById("btnClearMeta"), inp=document.getElementById("metaInput");
+    if(meta>0){ lbl.textContent="Meta: "+meta+" pratos"; clr.style.display=""; inp.value=meta; }
+    else{ lbl.textContent="Nenhuma meta definida"; clr.style.display="none"; inp.value=""; }
+    renderMetaBar();
+  }
+  async function renderHistory(){
+    var box=document.getElementById("historyList");
+    box.innerHTML='<div class="empty-state"><p>Carregando...</p></div>';
+    if(!currentUser) return;
+    try{
+      var snap=await userRef("history").get();
+      if(!snap.exists()){ box.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h18M3 12h18M3 18h18"/></svg><p>Nenhum dia encerrado ainda.</p></div>'; return; }
+      var rows=[]; snap.forEach(function(c){ rows.push(c.val()); });
+      rows.sort(function(a,b){ return b.date.localeCompare(a.date); });
+      box.innerHTML="";
+      rows.forEach(function(day){
+        var el=document.createElement("div"); el.className="history-item";
+        el.innerHTML=
+          '<div>'+
+            '<div class="h-date">'+formatDatePT(day.date)+'</div>'+
+            '<div class="h-meta"><span style="color:#88D47A">▲ '+(day.pegou||0)+' pegaram</span>  <span style="color:#D9A62E">↩ '+(day.repetiu||0)+' repetiram</span></div>'+
+            (day.obs?'<div class="h-obs">📝 '+escHtml(day.obs)+'</div>':'')+
+          '</div>'+
+          '<div class="h-right"><div class="h-total">'+day.total+'</div></div>';
+        box.appendChild(el);
+      });
+    }catch(e){ box.innerHTML='<div class="empty-state"><p>Não foi possível carregar.</p></div>'; }
+  }
+
+  // ---- COOLDOWN ----
+  var COOLDOWN_MS=2000, cdTimer=null;
+  function startCooldown(){
+    var btns=[document.getElementById("btnPegou"),document.getElementById("btnRepetiu")];
+    btns.forEach(function(b){
+      b.disabled=true; b.classList.add("cooling");
+      var bar=b.querySelector(".cooldown-bar"); bar.style.animation="none"; bar.offsetHeight; bar.style.animation="";
+    });
+    clearTimeout(cdTimer);
+    cdTimer=setTimeout(function(){ btns.forEach(function(b){ b.disabled=false; b.classList.remove("cooling"); }); },COOLDOWN_MS);
+  }
+
+  // ---- CONFETTI ----
+  function confetti(){
+    var colors=["#E8722E","#D9A62E","#4F7942","#3B6E8F","#A8487A","#E84040","#38BDF8"];
+    for(var i=0;i<60;i++){
+      (function(){
+        var el=document.createElement("div"); el.className="confetti-piece";
+        el.style.left=Math.random()*100+"vw";
+        el.style.background=colors[Math.floor(Math.random()*colors.length)];
+        var s=(6+Math.random()*10)+"px"; el.style.width=s; el.style.height=s;
+        el.style.borderRadius=Math.random()>.5?"50%":"2px";
+        el.style.animationDelay=(Math.random()*.8)+"s";
+        el.style.animationDuration=(1.6+Math.random()*1.4)+"s";
+        document.body.appendChild(el);
+        setTimeout(function(){ el.remove(); },3500);
+      })();
+    }
+  }
+
+  function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||30); }catch(e){} }
+
+  // ---- CONFIRM ----
+  var confirmCallback=null;
+  function showConfirm(title,msg,okLabel,danger,cb){
+    document.getElementById("confirmTitle").textContent=title;
+    document.getElementById("confirmMsg").textContent=msg;
+    var ok=document.getElementById("confirmOk"); ok.textContent=okLabel||"Confirmar";
+    ok.className="confirm-ok"+(danger?" danger-ok":"");
+    confirmCallback=cb;
+    document.getElementById("confirmOverlay").classList.add("show");
+  }
+  document.getElementById("confirmOk").addEventListener("click",function(){
+    document.getElementById("confirmOverlay").classList.remove("show");
+    if(confirmCallback) confirmCallback(); confirmCallback=null;
+  });
+  document.getElementById("confirmCancel").addEventListener("click",function(){
+    document.getElementById("confirmOverlay").classList.remove("show"); confirmCallback=null;
+  });
+
+  // ---- ACTIONS ----
+  function addPegou(){
+    var prev=state.total; state.total++; state.pegou++; state.log.push("P"); state.lastTime=Date.now();
+    renderScore(prev); renderReport(); renderLastTime(); persist();
+    showToast("✓ Pegou prato"); startCooldown(); vibrate(30); checkMeta(prev);
+  }
+  function addRepetiu(){
+    var prev=state.total; state.total++; state.repetiu++; state.log.push("R"); state.lastTime=Date.now();
+    renderScore(prev); renderReport(); renderLastTime(); persist();
+    showToast("✓ Repetiu"); startCooldown(); vibrate(30); checkMeta(prev);
+  }
+  function checkMeta(prev){ if(meta>0&&prev<meta&&state.total>=meta){ setTimeout(confetti,100); showToast("🎉 Meta de "+meta+" pratos atingida!"); } }
+  function undoLast(){
+    if(!state.log.length){ showToast("Nada para desfazer"); return; }
+    var last=state.log.pop(), prev=state.total; state.total=Math.max(0,state.total-1);
+    if(last==="P") state.pegou=Math.max(0,state.pegou-1);
+    if(last==="R") state.repetiu=Math.max(0,state.repetiu-1);
+    state.lastTime=state.log.length>0?state.lastTime:null;
+    renderScore(prev); renderReport(); renderLastTime(); persist(); showToast("Última contagem desfeita");
+  }
+  function zerarDia(){
+    showConfirm("Zerar o dia","Zerar a contagem de hoje sem salvar no histórico?","Zerar",true,function(){
+      state={date:todayISO(),total:0,pegou:0,repetiu:0,log:[],lastTime:null};
+      renderAll(); persist(); showToast("Contagem zerada");
+    });
+  }
+  async function finishDay(){
+    if(state.total===0){ showToast("Ainda não há pratos registrados"); return; }
+    var obs=document.getElementById("obsArea").value.trim();
+    showConfirm("Encerrar o dia","Salvar "+state.total+" prato(s) no histórico e zerar para o próximo intervalo?","Encerrar e salvar",false,async function(){
+      var snap=Object.assign({},state,{obs:obs});
+      await saveToHistory(snap);
+      state={date:todayISO(),total:0,pegou:0,repetiu:0,log:[],lastTime:null};
+      document.getElementById("obsArea").value="";
+      await persist(); renderAll(); renderHistory(); showToast("Dia salvo ✓"); switchTab("historico");
+    });
+  }
+
+  // ---- META ----
+  function setMeta(){ var v=parseInt(document.getElementById("metaInput").value)||0; if(v<=0){ showToast("Digite um número válido"); return; } meta=v; renderMeta(); persistMeta(); showToast("Meta: "+meta+" pratos"); }
+  function clearMeta(){ meta=0; renderMeta(); persistMeta(); showToast("Meta removida"); }
+
+  // ---- THEME ----
+  function toggleDark(){ var isDark=document.body.classList.toggle("dark"); persistTheme(isDark); updateDarkIcon(isDark); }
+  function updateDarkIcon(isDark){
+    document.getElementById("iconDark").innerHTML=isDark
+      ?'<circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      :'<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  // ---- FULLSCREEN ----
+  function enterFullscreen(){ document.body.classList.add("fullscreen"); switchTab("contar"); }
+  function exitFullscreenFn(){ document.body.classList.remove("fullscreen"); }
+
+  // ---- LOGOUT ----
+  function logout(){
+    showConfirm("Sair da conta","Tem certeza que quer sair?","Sair",false,function(){
+      auth.signOut(); state={date:todayISO(),total:0,pegou:0,repetiu:0,log:[],lastTime:null}; meta=0;
+    });
+  }
+
+  // ---- USER BTN ----
+  document.getElementById("btnUser").addEventListener("click", function(){
+    showConfirm("Conta","Logado como: "+(currentUser?currentUser.email:"—"),"Sair da conta",false,function(){
+      auth.signOut();
+    });
+  });
+
+  // ---- CLEAR HISTORY ----
+  async function clearHistory(){
+    showConfirm("Apagar histórico","Apagar TODOS os dias anteriores? Esta ação não pode ser desfeita.","Apagar tudo",true,async function(){
+      try{ await userRef("history").remove(); renderHistory(); showToast("Histórico apagado"); }
+      catch(e){ showToast("Erro ao apagar histórico"); }
+    });
+  }
+
+  // ---- TOAST ----
+  var toastT;
+  function showToast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove("show"); },2400); }
+
+  // ---- TABS ----
+  function switchTab(name){
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active",t.dataset.tab===name); });
+    document.querySelectorAll(".view").forEach(function(v){ v.classList.remove("active"); });
+    document.getElementById("view-"+name).classList.add("active");
+    if(name==="historico") renderHistory();
+    if(name==="relatorio") renderReport();
+  }
+
+  // ---- WIRE UP ----
+  document.querySelectorAll(".tab").forEach(function(t){ t.addEventListener("click",function(){ switchTab(t.dataset.tab); }); });
+  document.getElementById("btnPegou").addEventListener("click",addPegou);
+  document.getElementById("btnRepetiu").addEventListener("click",addRepetiu);
+  document.getElementById("btnUndo").addEventListener("click",undoLast);
+  document.getElementById("btnZerar").addEventListener("click",zerarDia);
+  document.getElementById("btnFinishDay").addEventListener("click",finishDay);
+  document.getElementById("btnSetMeta").addEventListener("click",setMeta);
+  document.getElementById("btnClearMeta").addEventListener("click",clearMeta);
+  document.getElementById("metaInput").addEventListener("keydown",function(e){ if(e.key==="Enter") setMeta(); });
+  document.getElementById("btnDark").addEventListener("click",toggleDark);
+  document.getElementById("btnFullscreen").addEventListener("click",enterFullscreen);
+  document.getElementById("exitFullscreen").addEventListener("click",exitFullscreenFn);
+  document.getElementById("btnClearHistory").addEventListener("click",clearHistory);
+  document.getElementById("btnLogout").addEventListener("click",logout);
+
+})();
+</script>
+</body>
+</html>
