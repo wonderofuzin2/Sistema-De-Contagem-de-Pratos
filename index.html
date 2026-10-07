@@ -334,6 +334,33 @@
   .reset-row .danger{ color:#B23A3A; border-color:#F0CBAF; }
   .reset-row .danger:active{ background:#FBE7E7; }
 
+  /* PASSWORD MODAL */
+  .pwd-overlay{
+    position:fixed; inset:0; background:rgba(43,36,32,.5);
+    display:none; align-items:center; justify-content:center; z-index:201; padding:20px;
+  }
+  .pwd-overlay.show{ display:flex; }
+  .pwd-box{
+    background:var(--card-bg); border-radius:20px; padding:24px 20px 20px;
+    width:100%; max-width:320px; box-shadow:0 20px 60px rgba(0,0,0,.3);
+    animation:popIn .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  .pwd-box h3{ font-family:'Archivo Black',sans-serif; font-size:16px; margin:0 0 4px; color:var(--text); }
+  .pwd-box p{ font-size:13px; color:var(--text-soft); margin:0 0 14px; }
+  .pwd-input{
+    width:100%; padding:12px 14px; border-radius:12px; border:1.5px solid var(--border);
+    font-size:15px; font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text);
+    margin-bottom:8px;
+  }
+  .pwd-input:focus{ outline:2px solid var(--carrot); outline-offset:1px; border-color:transparent; }
+  .pwd-error{ font-size:12.5px; color:#C84040; font-weight:600; margin-bottom:10px; display:none; min-height:18px; }
+  .pwd-error.show{ display:block; }
+  .pwd-btns{ display:flex; gap:10px; }
+  .pwd-btns button{ flex:1; padding:12px; border-radius:12px; border:none; font-weight:700; font-size:14px; cursor:pointer; font-family:'Outfit',sans-serif; }
+  .pwd-cancel{ background:var(--bg-deep); color:var(--text-soft); }
+  .pwd-confirm{ background:var(--carrot); color:white; }
+  .pwd-confirm:disabled{ opacity:.6; cursor:not-allowed; }
+
   /* CONFIRM MODAL */
   .confirm-overlay{
     position:fixed; inset:0; background:rgba(43,36,32,.5);
@@ -531,6 +558,19 @@
 
   </div><!-- wrap -->
 </div><!-- app-screen -->
+
+<div class="pwd-overlay" id="pwdOverlay">
+  <div class="pwd-box">
+    <h3 id="pwdTitle">Confirmar ação</h3>
+    <p id="pwdDesc">Digite sua senha para continuar.</p>
+    <input class="pwd-input" type="password" id="pwdInput" placeholder="Sua senha">
+    <div class="pwd-error" id="pwdError"></div>
+    <div class="pwd-btns">
+      <button class="pwd-cancel" id="pwdCancel">Cancelar</button>
+      <button class="pwd-confirm" id="pwdConfirm">Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
@@ -780,6 +820,46 @@
 
   function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||30); }catch(e){} }
 
+  // ---- PASSWORD MODAL ----
+  var pwdCallback = null;
+  function requirePassword(title, desc, cb){
+    document.getElementById("pwdTitle").textContent = title;
+    document.getElementById("pwdDesc").textContent = desc;
+    document.getElementById("pwdInput").value = "";
+    document.getElementById("pwdError").classList.remove("show");
+    document.getElementById("pwdError").textContent = "";
+    pwdCallback = cb;
+    document.getElementById("pwdOverlay").classList.add("show");
+    setTimeout(function(){ document.getElementById("pwdInput").focus(); }, 80);
+  }
+  function closePwd(){
+    document.getElementById("pwdOverlay").classList.remove("show");
+    pwdCallback = null;
+  }
+  document.getElementById("pwdCancel").addEventListener("click", closePwd);
+  document.getElementById("pwdConfirm").addEventListener("click", async function(){
+    var pass = document.getElementById("pwdInput").value;
+    if(!pass){ showPwdError("Digite sua senha."); return; }
+    var btn = this; btn.disabled = true; btn.textContent = "Verificando...";
+    try{
+      var cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, pass);
+      await currentUser.reauthenticateWithCredential(cred);
+      closePwd();
+      if(pwdCallback) pwdCallback();
+    } catch(e){
+      showPwdError("Senha incorreta. Tente novamente.");
+    } finally{
+      btn.disabled = false; btn.textContent = "Confirmar";
+    }
+  });
+  document.getElementById("pwdInput").addEventListener("keydown", function(e){
+    if(e.key === "Enter") document.getElementById("pwdConfirm").click();
+  });
+  function showPwdError(msg){
+    var el = document.getElementById("pwdError");
+    el.textContent = msg; el.classList.add("show");
+  }
+
   // ---- CONFIRM ----
   var confirmCallback=null;
   function showConfirm(title,msg,okLabel,danger,cb){
@@ -812,14 +892,16 @@
   function checkMeta(prev){ if(meta>0&&prev<meta&&state.total>=meta){ setTimeout(confetti,100); showToast("🎉 Meta de "+meta+" pratos atingida!"); } }
   function undoLast(){
     if(!state.log.length){ showToast("Nada para desfazer"); return; }
-    var last=state.log.pop(), prev=state.total; state.total=Math.max(0,state.total-1);
-    if(last==="P") state.pegou=Math.max(0,state.pegou-1);
-    if(last==="R") state.repetiu=Math.max(0,state.repetiu-1);
-    state.lastTime=state.log.length>0?state.lastTime:null;
-    renderScore(prev); renderReport(); renderLastTime(); persist(); showToast("Última contagem desfeita");
+    requirePassword("Desfazer contagem","Digite sua senha para desfazer o último registro.",function(){
+      var last=state.log.pop(), prev=state.total; state.total=Math.max(0,state.total-1);
+      if(last==="P") state.pegou=Math.max(0,state.pegou-1);
+      if(last==="R") state.repetiu=Math.max(0,state.repetiu-1);
+      state.lastTime=state.log.length>0?state.lastTime:null;
+      renderScore(prev); renderReport(); renderLastTime(); persist(); showToast("Última contagem desfeita");
+    });
   }
   function zerarDia(){
-    showConfirm("Zerar o dia","Zerar a contagem de hoje sem salvar no histórico?","Zerar",true,function(){
+    requirePassword("Zerar o dia","Digite sua senha para zerar a contagem de hoje.",function(){
       state={date:todayISO(),total:0,pegou:0,repetiu:0,log:[],lastTime:null};
       renderAll(); persist(); showToast("Contagem zerada");
     });
